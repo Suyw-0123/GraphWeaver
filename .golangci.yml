@@ -1,0 +1,55 @@
+# .golangci.yml
+# Linter configuration following ENGINEERING.md standards
+
+run:
+  timeout: 5m
+  tests: true
+  modules-download-mode: readonly
+
+linters:
+  enable:
+    - errcheck      # Check for unchecked errors
+    - gosimple      # Simplify code
+    - govet         # Go vet examination
+    - ineffassign   # Detect ineffectual assignments
+    - staticcheck   # Static analysis
+    - unused        # Detect unused code
+    - gofmt         # Format checker
+    - goimports     # Import management
+    - misspell      # Spelling errors
+    - revive        # Replacement for golint
+    - unconvert     # Remove unnecessary conversions
+    - unparam       # Detect unused function parameters
+    - goconst       # Find repeated strings that could be constants
+    - gocyclo       # Cyclomatic complexity
+    - gosec         # Security issues
+
+linters-settings:
+  errcheck:
+    check-blank: true
+    check-type-assertions: true
+  
+  gocyclo:
+    min-complexity: 15
+  
+  govet:
+    check-shadowing: true
+  
+  revive:
+    rules:
+      - name: exported
+        arguments:
+          - "checkPrivateReceivers"
+          - "sayRepetitiveInsteadOfStutters"
+
+issues:
+  exclude-use-default: false
+  max-issues-per-linter: 0
+  max-same-issues: 0
+  
+  exclude-rules:
+    # Exclude test files from certain checks
+    - path: _test\.go
+      linters:
+        - errcheck
+        - gosec
