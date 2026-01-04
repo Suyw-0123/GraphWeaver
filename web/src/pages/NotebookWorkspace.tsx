@@ -228,7 +228,9 @@ export const NotebookWorkspace: React.FC = () => {
                 <div className="w-1/2 flex flex-col bg-gray-800 border-l border-gray-700">
                     <div className="p-4 border-b border-gray-700 flex justify-between items-center">
                         <h2 className="font-medium text-gray-100">Documents</h2>
-                        <UploadForm onUploadSuccess={handleUploadSuccess} notebookId={notebookId} />
+                        {documents.length === 0 && (
+                            <UploadForm onUploadSuccess={handleUploadSuccess} notebookId={notebookId} />
+                        )}
                     </div>
                     
                     <div className="flex-1 overflow-y-auto p-4 bg-gray-900">
