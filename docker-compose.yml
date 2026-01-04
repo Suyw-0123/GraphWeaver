@@ -1,0 +1,78 @@
+version: '3.8'
+
+services:
+  # Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: graphweaver-postgres
+    environment:
+      POSTGRES_USER: graphweaver
+      POSTGRES_PASSWORD: graphweaver123
+      POSTGRES_DB: graphweaver
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - graphweaver-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U graphweaver -d graphweaver"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: graphweaver-backend
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - GIN_MODE=release
+      - PORT=8080
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=graphweaver
+      - DB_PASSWORD=graphweaver123
+      - DB_NAME=graphweaver
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL_NAME=${GEMINI_MODEL_NAME:-gemini-pro}
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./uploads:/app/uploads
+    networks:
+      - graphweaver-net
+    # Run migrations before starting the server
+    command: sh -c "./migrate -path migrations/postgres -database 'postgres://graphweaver:graphweaver123@postgres:5432/graphweaver?sslmode=disable' up && ./server"
+
+  # Frontend Web App
+  frontend:
+    build:
+      context: ./web
+      dockerfile: Dockerfile
+    container_name: graphweaver-frontend
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - graphweaver-net
+
+  # Future Services (Placeholder)
+  # neo4j:
+  #   image: neo4j:5.15-community
+  #   ...
+  # qdrant:
+  #   image: qdrant/qdrant:v1.7.4
+  #   ...
+
+networks:
+  graphweaver-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
