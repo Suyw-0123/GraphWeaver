@@ -63,7 +63,7 @@ func (s *chatService) Chat(ctx context.Context, notebookID int64, query string) 
 		}
 
 		contextBuilder.WriteString(fmt.Sprintf("\nSource: %s\n", doc.Filename))
-		
+
 		contextBuilder.WriteString("Entities:\n")
 		for _, node := range nodes {
 			contextBuilder.WriteString(fmt.Sprintf("- %s (%s)\n", node.Name, node.Label))

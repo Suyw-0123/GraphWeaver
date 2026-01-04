@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/jmoiron/sqlx"
 	_ "github.com/jackc/pgx/v5/stdlib"
+	"github.com/jmoiron/sqlx"
 )
 
 func main() {
@@ -32,7 +32,7 @@ func main() {
 	}
 
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPass, dbHost, dbPort, dbName)
-	
+
 	db, err := sqlx.Connect("pgx", dsn)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)

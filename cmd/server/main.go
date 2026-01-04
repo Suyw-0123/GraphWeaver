@@ -44,7 +44,7 @@ func main() {
 	}
 
 	dsn := fmt.Sprintf("postgres://%s:%s@%s:%s/%s?sslmode=disable", dbUser, dbPass, dbHost, dbPort, dbName)
-	
+
 	db, err := repository.NewPostgresDB(dsn)
 	if err != nil {
 		log.Fatalf("Failed to connect to database: %v", err)
@@ -85,7 +85,7 @@ func main() {
 
 	// Router Setup
 	r := gin.Default()
-	
+
 	// CORS Middleware (Basic)
 	r.Use(func(c *gin.Context) {
 		c.Writer.Header().Set("Access-Control-Allow-Origin", "*")

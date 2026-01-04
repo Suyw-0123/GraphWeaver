@@ -36,7 +36,7 @@ func (r *PostgresGraphRepository) CreateNode(ctx context.Context, node *entity.N
 		RETURNING id
 	`
 	node.CreatedAt = time.Now()
-	
+
 	rows, err := r.db.NamedQueryContext(ctx, query, node)
 	if err != nil {
 		return fmt.Errorf("failed to create node: %w", err)

@@ -36,7 +36,7 @@ func (r *PostgresDocumentRepository) Create(ctx context.Context, doc *entity.Doc
 		VALUES (:filename, :file_path, :mime_type, :file_size, :status, :notebook_id, :created_at, :updated_at)
 		RETURNING id
 	`
-	
+
 	doc.CreatedAt = time.Now()
 	doc.UpdatedAt = time.Now()
 	if doc.Status == "" {
@@ -62,14 +62,14 @@ func (r *PostgresDocumentRepository) Create(ctx context.Context, doc *entity.Doc
 func (r *PostgresDocumentRepository) GetByID(ctx context.Context, id int64) (*entity.Document, error) {
 	var doc entity.Document
 	query := `SELECT * FROM documents WHERE id = $1 AND is_deleted = false`
-	
+
 	if err := r.db.GetContext(ctx, &doc, query, id); err != nil {
 		if err == sql.ErrNoRows {
 			return nil, nil // Or return a custom ErrNotFound
 		}
 		return nil, fmt.Errorf("failed to get document: %w", err)
 	}
-	
+
 	return &doc, nil
 }
 
@@ -95,7 +95,7 @@ func (r *PostgresDocumentRepository) List(ctx context.Context, limit, offset int
 	if err := r.db.SelectContext(ctx, &docs, query, args...); err != nil {
 		return nil, fmt.Errorf("failed to list documents: %w", err)
 	}
-	
+
 	return docs, nil
 }
 
@@ -106,12 +106,12 @@ func (r *PostgresDocumentRepository) UpdateStatus(ctx context.Context, id int64,
 		SET status = $1, error_message = $2, updated_at = $3 
 		WHERE id = $4
 	`
-	
+
 	_, err := r.db.ExecContext(ctx, query, status, errorMessage, time.Now(), id)
 	if err != nil {
 		return fmt.Errorf("failed to update document status: %w", err)
 	}
-	
+
 	return nil
 }
 
@@ -122,7 +122,7 @@ func (r *PostgresDocumentRepository) UpdateSummary(ctx context.Context, id int64
 		SET summary = $1, updated_at = $2 
 		WHERE id = $3
 	`
-	
+
 	_, err := r.db.ExecContext(ctx, query, summary, time.Now(), id)
 	if err != nil {
 		return fmt.Errorf("failed to update document summary: %w", err)

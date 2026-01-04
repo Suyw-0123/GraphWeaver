@@ -31,8 +31,8 @@ func NewGeminiClient(ctx context.Context, apiKey string, modelName string) (*Gem
 	if modelName == "" {
 		modelName = "gemini-1.5-flash"
 	}
-	
-	// Note: If the user specifically requested "gemini-2.5-flash-lite", 
+
+	// Note: If the user specifically requested "gemini-2.5-flash-lite",
 	// we trust the env var. If it fails at runtime, the error will be clear.
 	model := client.GenerativeModel(modelName)
 
