@@ -1,0 +1,65 @@
+version: '3.8'
+
+services:
+  # Database
+  postgres:
+    image: postgres:15-alpine
+    container_name: graphweaver-postgres
+    restart: always
+    environment:
+      POSTGRES_USER: graphweaver
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_DB: graphweaver
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - graphweaver-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U graphweaver -d graphweaver"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  # Backend API
+  backend:
+    image: ghcr.io/suyw-0123/graphweaver-backend:latest
+    container_name: graphweaver-backend
+    restart: always
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - GIN_MODE=release
+      - PORT=8080
+      - DB_HOST=postgres
+      - DB_PORT=5432
+      - DB_USER=graphweaver
+      - DB_PASSWORD=${DB_PASSWORD}
+      - DB_NAME=graphweaver
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
+      - GEMINI_MODEL_NAME=${GEMINI_MODEL_NAME:-gemini-pro}
+    volumes:
+      - ./uploads:/app/uploads
+    networks:
+      - graphweaver-net
+    # Run migrations before starting the server
+    command: sh -c "./migrate -path migrations/postgres -database 'postgres://graphweaver:${DB_PASSWORD}@postgres:5432/graphweaver?sslmode=disable' up && ./server"
+
+  # Frontend Web App
+  frontend:
+    image: ghcr.io/suyw-0123/graphweaver-frontend:latest
+    container_name: graphweaver-frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+    networks:
+      - graphweaver-net
+
+networks:
+  graphweaver-net:
+    driver: bridge
+
+volumes:
+  postgres_data:
