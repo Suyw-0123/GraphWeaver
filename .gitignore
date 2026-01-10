@@ -1,5 +1,6 @@
 # Engineering Rules (local only)
-RULE/
+openspec/
+AGENTS.md
 .vscode/
 
 # Build artifacts
