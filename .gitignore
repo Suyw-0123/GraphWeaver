@@ -2,6 +2,7 @@
 openspec/
 AGENTS.md
 .vscode/
+.agent/
 
 # Build artifacts
 bin/
