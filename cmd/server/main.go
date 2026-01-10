@@ -6,12 +6,14 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strconv"
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
 	"github.com/suyw-0123/graphweaver/internal/api"
 	"github.com/suyw-0123/graphweaver/internal/repository"
 	"github.com/suyw-0123/graphweaver/internal/service"
+	"github.com/suyw-0123/graphweaver/pkg/embedding"
 	"github.com/suyw-0123/graphweaver/pkg/llm"
 )
 
@@ -69,15 +71,44 @@ func main() {
 		log.Printf("Initialized Gemini Client with model: %s", modelName)
 	}
 
+	// Embedding Client Initialization
+	embeddingClient, err := embedding.NewGeminiClient(context.Background(), apiKey)
+	if err != nil {
+		log.Printf("Warning: Failed to initialize Embedding client: %v", err)
+	} else {
+		defer embeddingClient.Close()
+		log.Println("Initialized Embedding Client")
+	}
+
+	// Vector Database
+	qdrantHost := os.Getenv("QDRANT_HOST")
+	if qdrantHost == "" {
+		qdrantHost = "127.0.0.1"
+	}
+	qdrantPort := 6334
+	if portStr := os.Getenv("QDRANT_PORT"); portStr != "" {
+		if p, err := strconv.Atoi(portStr); err == nil {
+			qdrantPort = p
+		}
+	}
+	vectorRepo, err := repository.NewQdrantVectorRepository(qdrantHost, qdrantPort)
+	if err != nil {
+		log.Printf("Warning: Failed to connect to Qdrant: %v", err)
+	} else {
+		defer vectorRepo.Close()
+		log.Println("Connected to Qdrant")
+	}
+
 	// Dependency Injection
 	docRepo := repository.NewPostgresDocumentRepository(db)
 	notebookRepo := repository.NewPostgresNotebookRepository(db)
 	graphRepo := repository.NewPostgresGraphRepository(db)
+	chunkRepo := repository.NewPostgresChunkRepository(db)
 
 	docService := service.NewDocumentService(docRepo, graphRepo)
 	notebookService := service.NewNotebookService(notebookRepo)
-	ingestionService := service.NewIngestionService(docRepo, graphRepo, llmClient, "uploads")
-	chatService := service.NewChatService(docRepo, graphRepo, llmClient)
+	ingestionService := service.NewIngestionService(docRepo, graphRepo, chunkRepo, vectorRepo, llmClient, embeddingClient, "uploads")
+	chatService := service.NewChatService(docRepo, graphRepo, vectorRepo, llmClient, embeddingClient)
 
 	docHandler := api.NewDocumentHandler(docService, ingestionService)
 	notebookHandler := api.NewNotebookHandler(notebookService)

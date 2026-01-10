@@ -11,8 +11,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/google/uuid"
 	"github.com/suyw-0123/graphweaver/internal/entity"
 	"github.com/suyw-0123/graphweaver/internal/repository"
+	"github.com/suyw-0123/graphweaver/pkg/embedding"
 	"github.com/suyw-0123/graphweaver/pkg/llm"
 	"github.com/suyw-0123/graphweaver/pkg/parser"
 )
@@ -23,24 +25,38 @@ type IngestionService interface {
 }
 
 type ingestionService struct {
-	docRepo   repository.DocumentRepository
-	graphRepo repository.GraphRepository
-	llmClient llm.Client
-	uploadDir string
+	docRepo         repository.DocumentRepository
+	graphRepo       repository.GraphRepository
+	chunkRepo       repository.ChunkRepository
+	vectorRepo      repository.VectorRepository
+	llmClient       llm.Client
+	embeddingClient embedding.Client
+	uploadDir       string
 }
 
 // NewIngestionService creates a new IngestionService.
-func NewIngestionService(docRepo repository.DocumentRepository, graphRepo repository.GraphRepository, llmClient llm.Client, uploadDir string) IngestionService {
+func NewIngestionService(
+	docRepo repository.DocumentRepository,
+	graphRepo repository.GraphRepository,
+	chunkRepo repository.ChunkRepository,
+	vectorRepo repository.VectorRepository,
+	llmClient llm.Client,
+	embeddingClient embedding.Client,
+	uploadDir string,
+) IngestionService {
 	// Ensure upload directory exists
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
 		// In a real app, we might want to handle this error more gracefully or panic at startup
 		fmt.Printf("Warning: failed to create upload dir: %v\n", err)
 	}
 	return &ingestionService{
-		docRepo:   docRepo,
-		graphRepo: graphRepo,
-		llmClient: llmClient,
-		uploadDir: uploadDir,
+		docRepo:         docRepo,
+		graphRepo:       graphRepo,
+		chunkRepo:       chunkRepo,
+		vectorRepo:      vectorRepo,
+		llmClient:       llmClient,
+		embeddingClient: embeddingClient,
+		uploadDir:       uploadDir,
 	}
 }
 
@@ -104,6 +120,78 @@ func (s *ingestionService) processDocumentAsync(docID int64, filePath string) {
 		errMsg := fmt.Sprintf("parsing failed: %v", err)
 		_ = s.docRepo.UpdateStatus(ctx, docID, "failed", &errMsg)
 		return
+	}
+
+	// 1.5. Chunking and Embedding
+	if s.embeddingClient != nil && s.vectorRepo != nil && s.chunkRepo != nil {
+		_ = s.docRepo.UpdateStatus(ctx, docID, "embedding", nil)
+
+		chunks := splitText(text, 512)
+		var chunkEntities []*entity.Chunk
+		var points []*entity.VectorPoint
+
+		// Process in batches if needed, but for now linear
+		// Collect texts for batch embedding
+		chunkTexts := make([]string, len(chunks))
+		for i, c := range chunks {
+			chunkTexts[i] = c
+		}
+
+		embeddings, err := s.embeddingClient.EmbedBatch(ctx, chunkTexts)
+		if err != nil {
+			fmt.Printf("Warning: Embedding generation failed: %v\n", err)
+			errMsg := fmt.Sprintf("embedding failed: %v", err)
+			_ = s.docRepo.UpdateStatus(ctx, docID, "failed", &errMsg)
+			// Decide if critical: Yes, hybrid search depends on it.
+			return
+		}
+
+		for i, chunkText := range chunks {
+			chunkID := uuid.New().String()
+
+			chunkEntities = append(chunkEntities, &entity.Chunk{
+				ID:         chunkID,
+				DocumentID: docID,
+				Index:      i,
+				Content:    chunkText,
+				TokenCount: len(strings.Fields(chunkText)), // Approximately
+				Embedding:  embeddings[i],
+			})
+
+			points = append(points, &entity.VectorPoint{
+				ID:     chunkID,
+				Vector: embeddings[i],
+				Payload: map[string]interface{}{
+					"document_id": docID,
+					"chunk_index": i,
+					"content":     chunkText,
+				},
+			})
+		}
+
+		// Save Chunks to Postgres
+		if err := s.chunkRepo.CreateChunks(ctx, chunkEntities); err != nil {
+			fmt.Printf("Error saving chunks: %v\n", err)
+			// Log but proceed? No, data integrity.
+			errMsg := fmt.Sprintf("chunk storage failed: %v", err)
+			_ = s.docRepo.UpdateStatus(ctx, docID, "failed", &errMsg)
+			return
+		}
+
+		// Save Vectors to Qdrant
+		// Ensure collection exists (lazy init per notebook or single collection)
+		// Assuming single collection "documents" or per notebook?
+		// Proposal says: "Scenario: Vector collection initialization ... WHEN a new notebook is created"
+		// If using single collection for now:
+		collectionName := "documents"
+		_ = s.vectorRepo.CreateCollection(ctx, collectionName, 768) // Ignore error if exists
+
+		if err := s.vectorRepo.Upsert(ctx, collectionName, points); err != nil {
+			fmt.Printf("Error upserting vectors: %v\n", err)
+			errMsg := fmt.Sprintf("vector upsert failed: %v", err)
+			_ = s.docRepo.UpdateStatus(ctx, docID, "failed", &errMsg)
+			return
+		}
 	}
 
 	// 2. Call LLM for Entity Extraction
@@ -248,4 +336,25 @@ Text to analyze:
 
 	// 5. Mark as Completed
 	_ = s.docRepo.UpdateStatus(ctx, docID, "completed", nil)
+}
+
+func splitText(text string, maxTokens int) []string {
+	words := strings.Fields(text)
+	var chunks []string
+	var currentChunk []string
+	currentCount := 0
+
+	for _, word := range words {
+		currentChunk = append(currentChunk, word)
+		currentCount++
+		if currentCount >= maxTokens {
+			chunks = append(chunks, strings.Join(currentChunk, " "))
+			currentChunk = []string{}
+			currentCount = 0
+		}
+	}
+	if len(currentChunk) > 0 {
+		chunks = append(chunks, strings.Join(currentChunk, " "))
+	}
+	return chunks
 }

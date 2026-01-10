@@ -19,6 +19,23 @@ services:
       timeout: 5s
       retries: 5
 
+  # Qdrant Vector Database
+  qdrant:
+    image: qdrant/qdrant:latest
+    container_name: graphweaver-qdrant-demo
+    restart: always
+    ports:
+      - "6333:6333"
+    volumes:
+      - qdrant_storage:/qdrant/storage
+    networks:
+      - graphweaver-net
+    healthcheck:
+      test: ["CMD-SHELL", "bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   # Backend API
   backend:
     image: ghcr.io/suyw-0123/graphweaver-backend:latest
@@ -37,6 +54,8 @@ services:
       - DB_NAME=graphweaver
       - GEMINI_API_KEY=${GEMINI_API_KEY}
       - GEMINI_MODEL_NAME=${GEMINI_MODEL_NAME:-gemini-pro}
+      - QDRANT_HOST=qdrant
+      - QDRANT_PORT=6334
     volumes:
       - ./uploads:/app/uploads
     networks:
@@ -62,3 +81,4 @@ networks:
 
 volumes:
   postgres_data:
+  qdrant_storage:
