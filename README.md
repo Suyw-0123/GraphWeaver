@@ -12,7 +12,7 @@
 ## Key Features
 
 - **Hybrid Retrieval Engine**: Combines **Vector Search** (for semantic entry points) with **Graph Diffusion** (for logical relationship reasoning).
-- **Cloud-Native Architecture**: Built from the ground up to be scalable and resilient, ready for Kubernetes (Kind/Helm) deployment.
+- **Containerized Deployment**: Easy setup with **Docker Compose** for local development and testing.
 - **High Performance**: Backend implemented in **Go (Golang)** for efficient concurrency and low-latency processing.
 - **Modern Knowledge Management**: Automated entity and relationship extraction from unstructured data (PDF/Markdown).
 - **Interactive UI**: Sleek and responsive dashboard built with **React**, **TypeScript**, and **Tailwind CSS**.
@@ -42,16 +42,16 @@
 
 ### 🚀 Infrastructure & DevOps
 
-![Kubernetes](https://img.shields.io/badge/Kubernetes-326CE5?style=for-the-badge&logo=kubernetes&logoColor=white)
 ![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
-![Helm](https://img.shields.io/badge/Helm-0F1628?style=for-the-badge&logo=helm&logoColor=white)
 ![GitHub Actions](https://img.shields.io/badge/GitHub_Actions-2088FF?style=for-the-badge&logo=github-actions&logoColor=white)
 
 ---
 
-## System Architecture (TODO)
+## System Architecture
 
-GraphWeaver follows a microservices-based architecture designed for high availability and performance.
+GraphWeaver follows a monolithic architecture with clear separation of concerns, designed for ease of development and deployment via Docker Compose.
+
+![diagram](graphweaver_architecture.png)
 
 ---
 
@@ -92,7 +92,7 @@ We use a `Makefile` to automate common development tasks:
 - `make fmt`: Format code.
 - `make lint`: Run linters.
 - `make test`: Run unit and integration tests.
-- `make kind-create`: Set up a local K8s cluster for testing.
+- `make docker-build`: Build Docker images locally.
 
 ---
 
