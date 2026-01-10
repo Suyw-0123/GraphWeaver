@@ -3,7 +3,7 @@
 [![Go Report Card](https://goreportcard.com/badge/github.com/suyw-0123/graphweaver)](https://goreportcard.com/report/github.com/suyw-0123/graphweaver)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**GraphWeaver** is a cloud-native, high-performance **Graph RAG (Retrieval-Augmented Generation)** knowledge engine. It leverages the power of "Entity-Relationship" modeling and "Semantic Vector" search to solve complex multi-hop reasoning challenges that traditional RAG systems often struggle with.
+**GraphWeaver** is a high-performance **Graph RAG (Retrieval-Augmented Generation)** knowledge engine. It leverages the power of "Entity-Relationship" modeling and "Semantic Vector" search to solve complex multi-hop reasoning challenges that traditional RAG systems often struggle with.
 
 #### [ Click here to try the Demo](https://download-directory.github.io/?url=https://github.com/Suyw-0123/GraphWeaver/tree/main/demo)
 
