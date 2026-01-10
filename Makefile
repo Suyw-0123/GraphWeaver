@@ -48,90 +48,6 @@ test-coverage: test ## Run tests and show coverage
 	@echo "Coverage report: coverage.html"
 
 # ==============================================================================
-# Kubernetes Infrastructure
-# ==============================================================================
-
-.PHONY: kind-create
-kind-create: ## Create kind cluster with port mappings
-	kind create cluster --name graph-weaver-cluster --config config/kind-cluster.yaml || true
-	kubectl cluster-info --context kind-graph-weaver-cluster
-
-.PHONY: kind-delete
-kind-delete: ## Delete kind cluster
-	kind delete cluster --name graph-weaver-cluster
-
-.PHONY: kind-recreate
-kind-recreate: kind-delete kind-create ## Recreate kind cluster
-
-.PHONY: k9s
-k9s: ## Launch k9s terminal UI
-	k9s --context kind-graph-weaver-cluster
-
-# ==============================================================================
-# Helm & Database Setup
-# ==============================================================================
-
-.PHONY: helm-init
-helm-init: ## Add Helm repositories
-	@echo "Adding Helm repositories..."
-	helm repo add bitnami https://charts.bitnami.com/bitnami
-	helm repo add neo4j https://helm.neo4j.com/neo4j
-	helm repo add qdrant https://qdrant.github.io/qdrant-helm
-	helm repo update
-	@echo "✅ Helm repositories added"
-
-.PHONY: db-install
-db-install: ## Install all databases (PostgreSQL, Neo4j, Qdrant)
-	@echo "Installing databases via Helm..."
-	helm upgrade --install postgresql bitnami/postgresql \
-		--set auth.postgresPassword=graphweaver123 \
-		--set auth.username=graphweaver \
-		--set auth.password=graphweaver123 \
-		--set auth.database=graphweaver \
-		--set primary.persistence.size=2Gi \
-		--namespace default
-	helm upgrade --install neo4j neo4j/neo4j \
-		--set neo4j.name=neo4j \
-		--set neo4j.password=neo4j123 \
-		--set neo4j.edition=community \
-		--set volumes.data.mode=defaultStorageClass \
-		--set volumes.data.defaultStorageClass.requests.storage=2Gi \
-		--namespace default
-	helm upgrade --install qdrant qdrant/qdrant \
-		--set persistence.size=2Gi \
-		--namespace default
-	@echo "✅ Databases installed. Waiting for ready status..."
-	kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=postgresql --timeout=300s || true
-	kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=neo4j --timeout=300s || true
-	kubectl wait --for=condition=ready pod -l app.kubernetes.io/name=qdrant --timeout=300s || true
-
-.PHONY: db-uninstall
-db-uninstall: ## Uninstall all databases
-	helm uninstall postgresql --namespace default || true
-	helm uninstall neo4j --namespace default || true
-	helm uninstall qdrant --namespace default || true
-
-.PHONY: db-status
-db-status: ## Check database pods status
-	@echo "=== Database Pods Status ==="
-	kubectl get pods -l app.kubernetes.io/name=postgresql || echo "PostgreSQL not found"
-	kubectl get pods -l app.kubernetes.io/name=neo4j || echo "Neo4j not found"
-	kubectl get pods -l app.kubernetes.io/name=qdrant || echo "Qdrant not found"
-	@echo "\n=== Database Services ==="
-	kubectl get svc | grep -E "postgresql|neo4j|qdrant" || echo "No database services found"
-
-.PHONY: db-port-forward
-db-port-forward: ## Port forward all databases to localhost
-	@echo "Starting port forwarding (Ctrl+C to stop)..."
-	@echo "PostgreSQL: localhost:5432"
-	@echo "Neo4j: localhost:7474 (HTTP), localhost:7687 (Bolt)"
-	@echo "Qdrant: localhost:6333"
-	kubectl port-forward svc/postgresql 5432:5432 &
-	kubectl port-forward svc/neo4j 7474:7474 7687:7687 &
-	kubectl port-forward svc/qdrant 6333:6333 &
-	@echo "Port forwarding active. Press Ctrl+C to stop all."
-
-# ==============================================================================
 # Database Migration
 # ==============================================================================
 
@@ -178,22 +94,12 @@ run-chat: ## Run Chat Service locally
 	go run cmd/chat/main.go
 
 # ==============================================================================
-# Docker & Skaffold
+# Docker Build
 # ==============================================================================
 
 .PHONY: docker-build
 docker-build: ## Build Docker images locally
-	docker build -t graphweaver/gateway:latest -f deployments/docker/Dockerfile.gateway .
-	docker build -t graphweaver/ingestion:latest -f deployments/docker/Dockerfile.ingestion .
-	docker build -t graphweaver/chat:latest -f deployments/docker/Dockerfile.chat .
-
-.PHONY: skaffold-dev
-skaffold-dev: ## Run Skaffold in dev mode (auto-rebuild on changes)
-	skaffold dev --port-forward
-
-.PHONY: skaffold-run
-skaffold-run: ## Deploy to K8s via Skaffold
-	skaffold run
+	docker build -t graphweaver-server:latest .
 
 # ==============================================================================
 # Clean
@@ -206,5 +112,6 @@ clean: ## Clean build artifacts
 	go clean -cache
 
 .PHONY: clean-all
-clean-all: clean db-uninstall kind-delete ## Nuclear clean (remove everything)
+clean-all: clean ## Complete cleanup
 	@echo "✅ Complete cleanup done"
+

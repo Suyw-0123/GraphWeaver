@@ -143,7 +143,14 @@ Text to analyze:
 `, text[:10000])
 	}
 
+	if s.llmClient == nil {
+		errMsg := "llm client not initialized. Check GEMINI_API_KEY."
+		_ = s.docRepo.UpdateStatus(ctx, docID, "failed", &errMsg)
+		return
+	}
+
 	response, err := s.llmClient.GenerateContent(ctx, prompt)
+
 	if err != nil {
 		errMsg := fmt.Sprintf("llm generation failed: %v", err)
 		_ = s.docRepo.UpdateStatus(ctx, docID, "failed", &errMsg)
