@@ -96,6 +96,12 @@ We use a `Makefile` to automate common development tasks:
 
 ---
 
+## TODO Features
+
+- [ ] Query rewriting: rewrite and optimize user questions before retrieval to improve multi-hop reasoning quality.
+
+---
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
